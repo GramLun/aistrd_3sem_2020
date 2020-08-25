@@ -1,0 +1,191 @@
+#include <iostream>
+#include <fstream>
+#include <vector>
+#include <string>
+#include <math.h>
+#include <map>
+
+using namespace std;
+
+const int MAX_EDGE = 50;
+
+struct edge
+{
+    char one; // node
+    char two; // node
+    int w; // weight
+
+    edge(string line);
+};
+
+edge::edge(string line) {
+    one = line[0];
+    two = line[1];
+
+    if (line.length() > 3) {
+        unsigned k = 2;
+        auto s = unsigned(pow(10,(line.length() - 3)));
+        unsigned num = 0;
+        while (line[k] != '\0') {
+            num += (line[k] - '0') * s;
+            s /= 10;
+            k++;
+        }
+        w = num;
+    } else {
+        w = line[2] - '0';
+    }
+}
+
+vector<edge*>* read(vector<edge*>* edges) {
+    ifstream in;
+    string line;
+    string path = "C:/CLion(University)/2 sem/aandstr/kursov/in.txt";
+    in.open(path);
+    if (in.is_open()) {
+        while (!in.eof()) {
+            in >> line;
+            edge* buf = new edge(line);
+            edges->push_back(buf);
+        }
+    } else {
+        cout << "(!) Read error" << endl;
+    }
+    in.close();
+    return edges;
+}
+
+void quickSort(vector<edge*>& edges, int beg, int end) {
+    int left = beg;
+    int right = end;
+    int mid = edges[(left + right + 1)/2]->w;
+    while (left <= right) {
+        while (edges[left]->w < mid)
+            left++;
+        while (edges[right]->w > mid)
+            right--;
+        if (left <= right) {
+            edge* buf = edges[left];
+            edges[left] = edges[right];
+            edges[right] = buf;
+            left++;
+            right--;
+        }
+    }
+    if (beg < right)
+        quickSort(edges, beg, right);
+    if (end > left)
+        quickSort(edges, left, end);
+}
+
+bool find(vector<char> unions,  char edge) {
+    for (auto buf : unions) {
+        if (buf == edge)
+            return true;
+    }
+    return false;
+}
+
+int isLoop(vector<vector<char>> unions, edge* buf) {
+    for (int i = 0; i < unions.size(); i++) {
+        if (find(unions[i], buf->one) && find(unions[i], buf->two))
+            return -1;
+    }
+
+    for (int i = 0; i < unions.size(); i++) {
+        if (find(unions[i], buf->one) || find(unions[i], buf->two))
+            return i;
+    }
+    return 1;
+}
+
+void merge(vector<vector<char>>& unions, int first, int second) {
+    for (int i = 0; i < unions[second].size(); i++) {
+        unions[first].push_back(unions[second][i]);
+    }
+    unions[second].clear();
+}
+
+void balancing(vector<vector<char>>& unions) {
+    map<int, int> addNumbers;
+    for (int i = 0; i < unions.size(); i++) {
+        for (int j = i+1; j < unions.size(); j++) {
+            for (int k = 0; k < unions[j].size(); k++) {
+                if (find(unions[i], unions[j][k])) {
+                    addNumbers.insert(make_pair(i, j));
+                }
+            }
+        }
+    }
+
+    for (auto buf : addNumbers) {
+        merge(unions, buf.first, buf.second);
+    }
+}
+
+void lexicSort(vector<edge*>& edgesSort) {
+    for (int i = 1; i < edgesSort.size(); i++) {
+        for (int j = i; j > 0 ; j--) {
+            if (int(edgesSort[j-1]->one) > int(edgesSort[j]->one)) {
+                edge *tmp = edgesSort[j - 1];
+                edgesSort[j - 1] = edgesSort[j];
+                edgesSort[j] = tmp;
+            }
+        }
+    }
+}
+
+void process(vector<edge*> edges) {
+    vector<vector<char>> unions;
+    int toDo = 0;
+    for (int i = 0; i < edges.size(); i++) {
+        toDo = isLoop(unions, edges[i]);
+        if (toDo == 1) {
+            vector<char> buf;
+            buf.push_back(edges[i]->one);
+            buf.push_back(edges[i]->two);
+            unions.push_back(buf);
+        }
+        else if (toDo == -1) {
+            continue;
+        }
+        else {
+            unions[toDo].push_back(edges[i]->one);
+            unions[toDo].push_back(edges[i]->two);
+            balancing(unions);
+        }
+    }
+
+    ofstream out;
+    string path = "C:/CLion(University)/2 sem/aandstr/kursov/out.txt";
+    out.open(path);
+
+    vector<edge*> edgesSort;
+    for (int j = 0; j < unions[0].size() - 1; j+=2) {
+        for (auto buf : edges) {
+            if ((buf->one == unions[0][j] && buf->two == unions[0][j + 1]) || (buf->one == unions[0][j+1] && buf->two == unions[0][j])) {
+                edgesSort.push_back(buf);
+            }
+        }
+    }
+
+    int sum = 0;
+    lexicSort(edgesSort);
+    out << "Edges: " << endl;
+    for (int j = 0; j < edgesSort.size(); j++) {
+        out << edgesSort[j]->one <<  edgesSort[j]->two << endl;
+        sum += edgesSort[j]->w;
+    }
+
+    out << endl << "Union weight: " << sum;
+    out << endl;
+    out.close();
+}
+
+int main() {
+    vector<edge*> edges;
+    read(&edges);
+    quickSort(edges, 0, edges.size() - 1);
+    process(edges);
+    return 0;
+}
